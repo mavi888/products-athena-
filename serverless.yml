@@ -1,0 +1,70 @@
+service: products-athena 
+
+custom:
+  BUCKET_NAME: <PICK A BUCKET NAME>
+  ATHENA_BUCKET_NAME: <PICK A BUCKET NAME>
+  DATABASE_NAME: 'products_athena'
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  environment: ${self:custom}
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "s3:GetBucketLocation"
+        - "s3:GetObject"
+        - "s3:ListBucket"
+        - "s3:ListBucketMultipartUploads"
+        - "s3:ListMultipartUploadParts"
+        - "s3:AbortMultipartUpload"
+        - "s3:CreateBucket"
+        - "s3:PutObject"
+      Resource: 
+        - "arn:aws:s3:::${self:custom.BUCKET_NAME}/*"
+        - "arn:aws:s3:::${self:custom.BUCKET_NAME}"
+        - "arn:aws:s3:::${self:custom.ATHENA_BUCKET_NAME}"
+        - "arn:aws:s3:::${self:custom.ATHENA_BUCKET_NAME}/*"
+    - Effect: "Allow"
+      Action:
+        - "glue:*"
+      Resource:
+          - "*"
+    - Effect: "Allow"
+      Action:
+        - "athena:*"
+      Resource:
+        - "*"
+
+functions:
+  createProduct:
+    handler: handler.createProduct 
+    events: 
+      - http:
+          method: post
+          path: product
+    layer:
+      - arn: arn:aws:lambda:us-east-1:066549572091:layer:epsagon-node-layer:1
+  searchProductByName:
+    handler: handler.searchProductByName
+    timeout: 20 # optional, in seconds, default is 6
+    events:
+      - http:
+          method: get
+          path: product
+    layer:
+      - arn: arn:aws:lambda:us-east-1:066549572091:layer:epsagon-node-layer:1
+  athenaInit:
+    handler: athena.init
+
+resources:
+  Resources:
+    ProductS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.BUCKET_NAME}
+    AthenaBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.ATHENA_BUCKET_NAME}
